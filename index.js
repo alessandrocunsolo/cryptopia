@@ -2,13 +2,12 @@ var verbose = false
 
 var util = require("util"),
     _ = require("underscore"),
-    request    = require("request"),
+    request = require("request"),
     crypto = require("crypto"),
     VError = require("verror")
-//    md5 = require("MD5")
+    //    md5 = require("MD5")
 
-var Cryptopia = function Cryptopia(api_key, secret, hostname, timeout)
-{
+var Cryptopia = function Cryptopia(api_key, secret, hostname, timeout) {
     this.api_key = api_key
     this.secret = secret
 
@@ -20,29 +19,25 @@ var Cryptopia = function Cryptopia(api_key, secret, hostname, timeout)
     this.timeout = timeout || 20000
 }
 
-var headers = {"User-Agent": "nodejs-7.5-api-client"}
+var headers = { "User-Agent": "nodejs-7.5-api-client" }
 
-Cryptopia.prototype.privateRequest = function(method, params, callback)
-{
+Cryptopia.prototype.privateRequest = function(method, params, callback) {
     var functionName = "Cryptopia.privateRequest()",
         self = this
 
     var error
 
-    if(!this.api_key || !this.secret)
-    {
+    if (!this.api_key || !this.secret) {
         error = new VError("%s must provide api_key and secret to make this API request.", functionName)
         return callback(error)
     }
 
-    if(!_.isObject(params))
-    {
+    if (!_.isObject(params)) {
         error = new VError("%s second parameter %s must be an object. If no params then pass an empty object {}", functionName, params)
         return callback(error)
     }
 
-    if (!callback || typeof(callback) != "function")
-    {
+    if (!callback || typeof(callback) != "function") {
         error = new VError("%s third parameter needs to be a callback function", functionName)
         return callback(error)
     }
@@ -51,16 +46,16 @@ Cryptopia.prototype.privateRequest = function(method, params, callback)
     var url = this.server + "/" + uri
 
     var nonce = Math.floor(new Date().getTime() / 1000)
-    var md5 = crypto.createHash("md5").update( JSON.stringify( params ) ).digest()
+    var md5 = crypto.createHash("md5").update(JSON.stringify(params)).digest()
     var requestContentBase64String = md5.toString("base64")
-    var signature = this.api_key + "POST" + encodeURIComponent( url ).toLowerCase() + nonce + requestContentBase64String
-    var hmacsignature = crypto.createHmac("sha256", new Buffer( this.secret, "base64" ) ).update( signature ).digest().toString("base64")
+    var signature = this.api_key + "POST" + encodeURIComponent(url).toLowerCase() + nonce + requestContentBase64String
+    var hmacsignature = crypto.createHmac("sha256", new Buffer(this.secret, "base64")).update(signature).digest().toString("base64")
     var header_value = "amx " + this.api_key + ":" + hmacsignature + ":" + nonce
 
     var headers = {
         "Authorization": header_value,
-        "Content-Type":"application/json; charset=utf-8",
-        "Content-Length" : Buffer.byteLength(JSON.stringify(params)),
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Length": Buffer.byteLength(JSON.stringify(params)),
         "User-Agent": "nodejs-7.5-api-client"
     }
     var options = {
@@ -69,7 +64,7 @@ Cryptopia.prototype.privateRequest = function(method, params, callback)
         url: url,
         method: "POST",
         headers: headers,
-        form: JSON.stringify( params )
+        form: JSON.stringify(params)
     }
 
     var requestDesc = util.format("%s request to url %s with method %s and params %s",
@@ -78,19 +73,16 @@ Cryptopia.prototype.privateRequest = function(method, params, callback)
     executeRequest(options, requestDesc, callback)
 }
 
-Cryptopia.prototype.publicRequest = function(method, params, callback)
-{
+Cryptopia.prototype.publicRequest = function(method, params, callback) {
     var functionName = "Cryptopia.publicRequest()"
     var error
 
-    if(!_.isObject(params))
-    {
+    if (!_.isObject(params)) {
         error = new VError("%s second parameter %s must be an object. If no params then pass an empty object {}", functionName, params)
         return callback(error)
     }
 
-    if (!callback || typeof(callback) != "function")
-    {
+    if (!callback || typeof(callback) != "function") {
         error = new VError("%s third parameter needs to be a callback function with err and data parameters", functionName)
         return callback(error)
     }
@@ -104,7 +96,7 @@ Cryptopia.prototype.publicRequest = function(method, params, callback)
         headers: headers,
         timeout: this.timeout,
         qs: params,
-        json: {}        // request will parse the json response into an object
+        json: {} // request will parse the json response into an object
     }
 
     var requestDesc = util.format("%s request to url %s with parameters %s",
@@ -113,43 +105,33 @@ Cryptopia.prototype.publicRequest = function(method, params, callback)
     executeRequest(options, requestDesc, callback)
 }
 
-function executeRequest(options, requestDesc, callback)
-{
+function executeRequest(options, requestDesc, callback) {
     var functionName = "Cryptopia.executeRequest()"
 
-    request(options, function(err, response, data)
-    {
-        var error = null,   // default to no errors
+    request(options, function(err, response, data) {
+        var error = null, // default to no errors
             returnObject = data
 
-        if(err)
-        {
+        if (err) {
             error = new VError(err, "%s failed %s", functionName, requestDesc)
             error.name = err.code
-        }
-        else if (response.statusCode < 200 || response.statusCode >= 300)
-        {
+        } else if (response.statusCode < 200 || response.statusCode >= 300) {
             error = new VError("%s HTTP status code %s returned from %s", functionName,
                 response.statusCode, requestDesc)
             error.name = response.statusCode
-        }
-        else if (options.form)
-        {
+        } else if (options.form) {
             try {
                 returnObject = JSON.parse(data)
-            }
-            catch(e) {
+            } catch (e) {
                 error = new VError(e, "Could not parse response from server: " + data)
             }
         }
         // if json request was not able to parse json response into an object
-        else if (options.json && !_.isObject(data) )
-        {
+        else if (options.json && !_.isObject(data)) {
             error = new VError("%s could not parse response from %s\nResponse: %s", functionName, requestDesc, data)
         }
 
-        if (_.has(returnObject, "error_code"))
-        {
+        if (_.has(returnObject, "error_code")) {
             var errorMessage = mapErrorMessage(returnObject.error_code)
 
             error = new VError("%s %s returned error code %s, message: '%s'", functionName,
@@ -167,30 +149,26 @@ function executeRequest(options, requestDesc, callback)
 //
 
 
-Cryptopia.prototype.getCurrencies = function getCurrencies(callback)
-{
+Cryptopia.prototype.getCurrencies = function getCurrencies(callback) {
     this.publicRequest("GetCurrencies/", {}, callback)
 }
 
-Cryptopia.prototype.getTicker = function getTicker(callback, pair)
-{
-    this.publicRequest("GetMarket/" + pair, {currencyPair: pair}, callback)
+Cryptopia.prototype.getTicker = function getTicker(callback, pair) {
+    this.publicRequest("GetMarket/" + pair, { currencyPair: pair }, callback)
 }
 
-Cryptopia.prototype.getOrderBook = function getOrderBook(callback, pair, limit)
-{
+Cryptopia.prototype.getOrderBook = function(callback, pair, limit) {
     var params = {
         currencyPair: pair,
         limit: 1000,
     }
 
-    if (!_.isUndefined(limit) ) params.limit = limit
+    if (!_.isUndefined(limit)) params.limit = limit
 
     this.publicRequest("GetMarketOrders/" + pair + "/" + params.limit, params, callback)
 }
 
-Cryptopia.prototype.getTrades = function getTrades(callback, pair, hours)
-{
+Cryptopia.prototype.getTrades = function getTrades(callback, pair, hours) {
     var params = {
         currencyPair: pair,
         hours: 24,
@@ -201,9 +179,8 @@ Cryptopia.prototype.getTrades = function getTrades(callback, pair, hours)
     this.publicRequest("GetMarketHistory/" + pair + "/" + params.hours, params, callback)
 }
 
-Cryptopia.prototype.getKline = function getKline(callback, symbol, type, size, since)
-{
-    var params = {symbol: symbol}
+Cryptopia.prototype.getKline = function getKline(callback, symbol, type, size, since) {
+    var params = { symbol: symbol }
     if (type) params.type = type
     if (size) params.size = size
     if (since) params.since = since
@@ -211,60 +188,58 @@ Cryptopia.prototype.getKline = function getKline(callback, symbol, type, size, s
     this.publicRequest("kline", params, callback)
 }
 
-Cryptopia.prototype.getLendDepth = function getLendDepth(callback, symbol)
-{
-    this.publicRequest("kline", {symbol: symbol}, callback)
+Cryptopia.prototype.getLendDepth = function getLendDepth(callback, symbol) {
+    this.publicRequest("kline", { symbol: symbol }, callback)
 }
 
 //
 // Private Functions
 //
 
-Cryptopia.prototype.getBalance = function getBalance(callback)
-{
+Cryptopia.prototype.getBalance = function getBalance(callback) {
     this.privateRequest("GetBalance", {}, callback)
 }
 
-Cryptopia.prototype.addTrade = function addTrade(callback, symbol, type, amount, price)
-{
-    var params = {
-        symbol: symbol,
-        type: type
-    }
+Cryptopia.prototype.submitTrade = function(callback, market, tradepairId, type, rate, amount) {
 
-    if (amount) params.amount = amount
-    if (price) params.price = price
+    var params = {};
 
-    this.privateRequest("trade", params, callback)
+    if (market) params.Market = market;
+    if (tradepairId) params.TradePairId = tradepairId;
+
+
+    params.Type = type;
+    params.Rate = rate;
+    params.Amount = amount;
+
+
+
+    this.privateRequest("SubmitTrade", params, callback)
 }
 
-Cryptopia.prototype.addBatchTrades = function addBatchTrades(callback, symbol, type, orders)
-{
-    this.privateRequest("batch_trade", {
-        symbol: symbol,
-        type: type,
-        orders_data: orders
-    }, callback)
-}
+// Cryptopia.prototype.addBatchTrades = function addBatchTrades(callback, symbol, type, orders) {
+//     this.privateRequest("batch_trade", {
+//         symbol: symbol,
+//         type: type,
+//         orders_data: orders
+//     }, callback)
+// }
 
-Cryptopia.prototype.cancelOrder = function cancelOrder(callback, symbol, order_id)
-{
+Cryptopia.prototype.cancelOrder = function cancelOrder(callback, symbol, order_id) {
     this.privateRequest("cancel_order", {
         symbol: symbol,
         order_id: order_id
     }, callback)
 }
 
-Cryptopia.prototype.getOrderInfo = function getOrderInfo(callback, symbol, order_id)
-{
+Cryptopia.prototype.getOrderInfo = function getOrderInfo(callback, symbol, order_id) {
     this.privateRequest("order_info", {
         symbol: symbol,
         order_id: order_id
     }, callback)
 }
 
-Cryptopia.prototype.getOrdersInfo = function getOrdersInfo(callback, symbol, type, order_id)
-{
+Cryptopia.prototype.getOrdersInfo = function getOrdersInfo(callback, symbol, type, order_id) {
     this.privateRequest("orders_info", {
         symbol: symbol,
         type: type,
@@ -272,8 +247,7 @@ Cryptopia.prototype.getOrdersInfo = function getOrdersInfo(callback, symbol, typ
     }, callback)
 }
 
-Cryptopia.prototype.getAccountRecords = function getAccountRecords(callback, symbol, type, current_page, page_length)
-{
+Cryptopia.prototype.getAccountRecords = function getAccountRecords(callback, symbol, type, current_page, page_length) {
     this.privateRequest("account_records", {
         symbol: symbol,
         type: type,
@@ -282,16 +256,14 @@ Cryptopia.prototype.getAccountRecords = function getAccountRecords(callback, sym
     }, callback)
 }
 
-Cryptopia.prototype.getTradeHistory = function getTradeHistory(callback, symbol, since)
-{
+Cryptopia.prototype.getTradeHistory = function getTradeHistory(callback, symbol, since) {
     this.privateRequest("trade_history", {
         symbol: symbol,
         since: since
     }, callback)
 }
 
-Cryptopia.prototype.getOrderHistory = function getOrderHistory(callback, symbol, status, current_page, page_length)
-{
+Cryptopia.prototype.getOrderHistory = function getOrderHistory(callback, symbol, status, current_page, page_length) {
     this.privateRequest("order_history", {
         symbol: symbol,
         status: status,
@@ -300,8 +272,7 @@ Cryptopia.prototype.getOrderHistory = function getOrderHistory(callback, symbol,
     }, callback)
 }
 
-Cryptopia.prototype.addWithdraw = function addWithdraw(callback, symbol, chargefee, trade_pwd, withdraw_address, withdraw_amount)
-{
+Cryptopia.prototype.addWithdraw = function addWithdraw(callback, symbol, chargefee, trade_pwd, withdraw_address, withdraw_amount) {
     this.privateRequest("withdraw", {
         symbol: symbol,
         chargefee: chargefee,
@@ -311,8 +282,7 @@ Cryptopia.prototype.addWithdraw = function addWithdraw(callback, symbol, chargef
     }, callback)
 }
 
-Cryptopia.prototype.cancelWithdraw = function cancelWithdraw(callback, symbol, withdraw_id)
-{
+Cryptopia.prototype.cancelWithdraw = function cancelWithdraw(callback, symbol, withdraw_id) {
     this.privateRequest("cancel_withdraw", {
         symbol: symbol,
         withdraw_id: withdraw_id
@@ -324,8 +294,7 @@ Cryptopia.prototype.cancelWithdraw = function cancelWithdraw(callback, symbol, w
  * @param  {Integer}  error_code   Cryptopia error code
  * @return {String}                error message
  */
-function mapErrorMessage(error_code)
-{
+function mapErrorMessage(error_code) {
     var errorCodes = {
         10000: "Required parameter can not be null",
         10001: "Requests are too frequent",
@@ -361,14 +330,14 @@ function mapErrorMessage(error_code)
         10042: "Admin password error",
         10100: "User account frozen",
         10216: "Non-available API",
-        503: "Too many requests (Http)"}
+        503: "Too many requests (Http)"
+    }
 
-    if (!errorCodes[error_code])
-    {
+    if (!errorCodes[error_code]) {
         return "Unknown Cryptopia error code: " + error_code
     }
 
-    return( errorCodes[error_code] )
+    return (errorCodes[error_code])
 }
 
 module.exports = Cryptopia
