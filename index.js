@@ -64,7 +64,8 @@ Cryptopia.prototype.privateRequest = function(method, params, callback) {
         url: url,
         method: "POST",
         headers: headers,
-        form: JSON.stringify(params)
+        //form: JSON.stringify(params)
+        body:JSON.stringify(params)
     }
 
     var requestDesc = util.format("%s request to url %s with method %s and params %s",
