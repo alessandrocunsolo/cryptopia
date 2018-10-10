@@ -65,7 +65,7 @@ Cryptopia.prototype.privateRequest = function(method, params, callback) {
         method: "POST",
         headers: headers,
         //form: JSON.stringify(params)
-        body:JSON.stringify(params)
+        json:params
     }
 
     var requestDesc = util.format("%s request to url %s with method %s and params %s",
@@ -226,26 +226,26 @@ Cryptopia.prototype.submitTrade = function(callback, market, tradepairId, type, 
 //     }, callback)
 // }
 
-Cryptopia.prototype.cancelOrder = function cancelOrder(callback, symbol, order_id) {
-    this.privateRequest("cancel_order", {
-        symbol: symbol,
-        order_id: order_id
-    }, callback)
+Cryptopia.prototype.cancelTrade = function cancelTrade(callback, type, order_id,tradepairId) {
+    var params = {};
+    params.Type = type;
+    if (order_id)
+        params.OrderId = order_id;
+    if (tradepairId)
+        params.TradePairId = tradepairId;
+
+    this.privateRequest("CancelTrade",params, callback)
 }
 
-Cryptopia.prototype.getOrderInfo = function getOrderInfo(callback, symbol, order_id) {
-    this.privateRequest("order_info", {
-        symbol: symbol,
-        order_id: order_id
-    }, callback)
-}
+Cryptopia.prototype.getOpenOrder = function getOpenOrder(callback, market, tradepairId, count) {
 
-Cryptopia.prototype.getOrdersInfo = function getOrdersInfo(callback, symbol, type, order_id) {
-    this.privateRequest("orders_info", {
-        symbol: symbol,
-        type: type,
-        order_id: order_id
-    }, callback)
+    var params = {};
+
+    if (market) params.Market = market;
+    if (tradepairId) params.TradePairId = tradepairId;
+    if (count) params.Count = count;
+
+    this.privateRequest("GetOpenOrder", params, callback)
 }
 
 Cryptopia.prototype.getAccountRecords = function getAccountRecords(callback, symbol, type, current_page, page_length) {
@@ -257,11 +257,14 @@ Cryptopia.prototype.getAccountRecords = function getAccountRecords(callback, sym
     }, callback)
 }
 
-Cryptopia.prototype.getTradeHistory = function getTradeHistory(callback, symbol, since) {
-    this.privateRequest("trade_history", {
-        symbol: symbol,
-        since: since
-    }, callback)
+Cryptopia.prototype.getTradeHistory = function getTradeHistory(callback, market, tradepairId,count) {
+    var params = {};
+
+    if (market) params.Market = market;
+    if (tradepairId) params.TradePairId = tradepairId;
+    if (count) params.Count = count;
+
+    this.privateRequest("GetTradeHistory",params, callback)
 }
 
 Cryptopia.prototype.getOrderHistory = function getOrderHistory(callback, symbol, status, current_page, page_length) {
